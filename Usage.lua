@@ -1,108 +1,157 @@
 --[[
-    ========================================================================
-    MANO UI - EXAMPLE IMPLEMENTATION
-    ========================================================================
-    This demonstrates how to utilize the library to create UI Tabs,
-    and attach modern executor functions.
-    ========================================================================
+    usage.lua
+    A complete demonstration script showcasing how to use the MicroUI library
+    defined in your Canvas. Run this in your Roblox executor.
 ]]
 
--- Load the Module from your GitHub raw repository
-local ManoUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Onekill507/mano-UI/refs/heads/main/ManoUI.lua"))()
-
--- Instantiate the Main Window UI
-local Window = ManoUI.new("Mano UI Executor")
-
--- Send a Premium Toast Notification
-Window:Notify("System Active", "Mano UI loaded successfully. Press Right Control to toggle visibility.", 6)
-
--- Create tab instances
-local MainTab = Window:AddTab("Home")
-local VisualsTab = Window:AddTab("Visuals")
-local SettingsTab = Window:AddTab("Settings")
-
--- ========================================================================
--- HOME TAB - COMPONENTS
--- ========================================================================
-
--- Action Button
-MainTab:AddButton("Destroy All Ceilings", function()
-    Window:Notify("Executing Script...", "Removing standard level roofs.", 3)
-    -- Your real game execution logic goes here!
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Part") and (obj.Name == "Roof" or obj.Name == "Ceiling") then
-            obj:Destroy()
-        end
-    end
+-- 1. Load the MicroUI Library
+-- In a real scenario, you can load it via loadstring if hosted, e.g.:
+-- local MicroUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/.../micro-ui.lua"))()
+-- For local testing in Roblox Studio, you can require it or paste it into a ModuleScript:
+local MicroUI = nil
+local success, err = pcall(function()
+    -- Attempt to find it if it was run beforehand or stored in ReplicatedStorage
+    MicroUI = shared.MicroUI or require(game:GetService("ReplicatedStorage"):WaitForChild("MicroUI"))
 end)
 
--- Reactive Switch (Toggle)
-local speedHackEnabled = false
-MainTab:AddToggle("Speed Booster", false, function(state)
-    speedHackEnabled = state
-    Window:Notify("Toggle Switched", "Speed Enhancement set to: " .. tostring(state), 2)
-    
-    task.spawn(function()
-        while speedHackEnabled do
-            local character = game.Players.LocalPlayer.Character
-            if character and character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = 35
-            end
-            task.wait(0.5)
-        end
-        -- Reset speed when disabled
-        local character = game.Players.LocalPlayer.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.WalkSpeed = 16
-        end
-    end)
-end)
+if not MicroUI then
+    -- Fallback: If not found as a module, we assume the library has been executed globally
+    -- and attached itself to a global or shared variable.
+    MicroUI = _G.MicroUI or shared.MicroUI
+end
 
--- Slider Interface
-MainTab:AddSlider("Jump Power Multiplier", 50, 250, 50, function(value)
+-- If both fail, let's notify the user (using a fallback print since we cannot alert)
+if not MicroUI then
+    warn("MicroUI Library not found! Make sure to run micro-ui.lua first or define shared.MicroUI = MicroUI at the end of it.")
+    return
+end
+
+-- 2. Create the Fluent-style Compact Window
+local Window = MicroUI.CreateWindow("Micro Executor v1.0")
+
+-- 3. Create Tabs (Saves horizontal space with its mini-sidebar design)
+local PlayerTab = Window:CreateTab("Player")
+local TeleportTab = Window:CreateTab("Teleport")
+local VisualsTab = Window:CreateTab("Visuals")
+local SettingsTab = Window:CreateTab("Settings")
+
+----------------------------------------------------
+-- PLAYER TAB CONFIGURATION
+----------------------------------------------------
+PlayerTab:AddLabel("Local Player Modifiers")
+
+-- WalkSpeed Slider
+local speedSlider = PlayerTab:AddSlider("WalkSpeed", 16, 150, 16, function(value)
     local character = game.Players.LocalPlayer.Character
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid.JumpPower = value
-        character.Humanoid.UseJumpPower = true
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
     end
 end)
 
--- Text Entry Interface
-MainTab:AddTextBox("Custom Name Tag", "Type display name...", true, function(enteredText, enterPressed)
+-- JumpPower Slider
+local jumpSlider = PlayerTab:AddSlider("JumpPower", 50, 250, 50, function(value)
+    local character = game.Players.LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = value
+    end
+end)
+
+-- Infinite Jump Toggle
+local infiniteJumpEnabled = false
+PlayerTab:AddToggle("Infinite Jump", false, function(state)
+    infiniteJumpEnabled = state
+end)
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local character = game.Players.LocalPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+----------------------------------------------------
+-- TELEPORT TAB CONFIGURATION
+----------------------------------------------------
+TeleportTab:AddLabel("World Navigation")
+
+-- Coordinate Teleporter Textbox
+local targetCoordinates = ""
+TeleportTab:AddTextbox("XYZ Coordinates", "e.g. 0, 50, 0", function(text, enterPressed)
     if enterPressed then
-        Window:Notify("Target Locked", "Custom user tag saved as: " .. enteredText, 3)
+        targetCoordinates = text
     end
 end)
 
--- ========================================================================
--- VISUALS TAB - COMPONENTS
--- ========================================================================
-
-VisualsTab:AddToggle("ESP Box Enabled", false, function(state)
-    Window:Notify("ESP System", "Player boxes updated.", 2)
+TeleportTab:AddButton("Teleport to Coordinates", function()
+    local character = game.Players.LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if rootPart and targetCoordinates ~= "" then
+        local split = string.split(targetCoordinates, ",")
+        local x = tonumber(split[1]) or 0
+        local y = tonumber(split[2]) or 0
+        local z = tonumber(split[3]) or 0
+        rootPart.CFrame = CFrame.new(x, y, z)
+    end
 end)
 
--- Dropdown Option Menu
-local DropdownCard, DropdownRef = VisualsTab:AddDropdown("Render Quality", {"Low", "Medium", "High", "Ultra Premium"}, "High", function(selectedValue)
-    Window:Notify("Graphics Overhaul", "Quality rendering preset set to: " .. selectedValue, 3.5)
+-- Dropdown Teleporter for Key Landmarks
+local landmarkDropdown = TeleportTab:AddDropdown("Select Landmark", {"Lobby", "Spawn Area", "VIP Room", "Item Shop"}, function(selectedItem)
+    local character = game.Players.LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    if selectedItem == "Lobby" then
+        rootPart.CFrame = CFrame.new(0, 10, 0) -- Update to matches your game's coordinates
+    elseif selectedItem == "Spawn Area" then
+        rootPart.CFrame = CFrame.new(100, 10, 100)
+    elseif selectedItem == "VIP Room" then
+        rootPart.CFrame = CFrame.new(-250, 15, 50)
+    elseif selectedItem == "Item Shop" then
+        rootPart.CFrame = CFrame.new(50, 5, -150)
+    end
 end)
 
--- Action Button to update existing Dropdown Options dynamically
-VisualsTab:AddButton("Unlock Hidden Presets", function()
-    DropdownRef:Refresh({"Low", "Medium", "High", "Ultra Premium", "Extreme Mano V2"})
-    Window:Notify("System Unlocked", "Added 'Extreme Mano V2' option to graphics presets!", 4)
+----------------------------------------------------
+-- VISUALS TAB CONFIGURATION
+----------------------------------------------------
+VisualsTab:AddLabel("Render & Environment Settings")
+
+-- Ambient lighting adjusters
+VisualsTab:AddToggle("Full Brightness", false, function(state)
+    if state then
+        game:GetService("Lighting").Ambient = Color3.fromRGB(255, 255, 255)
+        game:GetService("Lighting").Brightness = 2
+    else
+        game:GetService("Lighting").Ambient = Color3.fromRGB(128, 128, 128)
+        game:GetService("Lighting").Brightness = 1
+    end
 end)
 
--- ========================================================================
--- SETTINGS TAB - COMPONENTS
--- ========================================================================
-
--- Interactive Keybind Mapper
-SettingsTab:AddKeybind("Toggle UI Key", Enum.KeyCode.RightControl, function(newKey)
-    Window.ToggleKey = newKey
-    Window:Notify("System Key Changed", "You can now open/close the menu with: " .. newKey.Name, 4)
+-- Player ESP mock toggle
+VisualsTab:AddToggle("Player ESP", false, function(state)
+    -- In a live execution context, you would insert your highlight/ESP loop here
+    print("ESP Status changed to: ", state)
 end)
 
-SettingsTab:AddButton("Reset All Preferences", function()
-    Window:Notify("Clean Reset", "Default configurations successfully restored.", 3.5)
+----------------------------------------------------
+-- SETTINGS TAB CONFIGURATION
+----------------------------------------------------
+SettingsTab:AddLabel("UI Configuration")
+
+-- Reset parameters button
+SettingsTab:AddButton("Reset Values to Default", function()
+    speedSlider:SetValue(16)
+    jumpSlider:SetValue(50)
 end)
+
+-- UI Destruction
+SettingsTab:AddButton("Unload UI Library", function()
+    Window.Gui:Destroy()
+end)
+
+print("MicroUI Usage Script loaded and executed successfully!")
