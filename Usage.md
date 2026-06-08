@@ -7,9 +7,8 @@
     ========================================================================
 ]]
 
--- Load the Module (In normal exploit environments, loadstring would be used)
--- local ManoUI = loadstring(game:HttpGet("YOUR_RAW_LINK_HERE"))()
-local ManoUI = require(script.Parent.ManoUI) -- Standard Module Require style
+-- Load the Module from your GitHub raw repository
+local ManoUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Onekill507/mano-UI/refs/heads/main/ManoUI.lua"))()
 
 -- Instantiate the Main Window UI
 local Window = ManoUI.new("Mano UI Executor")
